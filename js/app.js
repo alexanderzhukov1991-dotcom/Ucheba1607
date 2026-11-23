@@ -56,8 +56,41 @@
   }
   function normalize(s) {
     return String(s).toLowerCase().replace(/ё/g, "е").replace(/,/g, ".")
-      .replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+      .replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "")
+      .replace(/(\d)\s+(?=\d)/g, "$1"); // «45 300» = «45300»
   }
+  // Проверка ответа, введённого с клавиатуры
+  function isRightInput(val, answer) {
+    var user = normalize(val);
+    return [].concat(answer).some(function (a) {
+      var right = normalize(a);
+      if (user === right) return true;
+      // для числовых ответов разрешаем дописать единицы: «36 км» = «36»
+      if (/^-?\d+(\.\d+)?$/.test(right)) {
+        var m = user.match(/^(-?\d+(?:\.\d+)?)\s*[a-zа-я. ]*$/);
+        return !!m && parseFloat(m[1]) === parseFloat(right);
+      }
+      return false;
+    });
+  }
+  // Вопросы для одного прохождения теста
+  function buildQuestions(t) {
+    if (t.mixFrom) {
+      // сборная проверочная: понемногу из каждого теста предмета по кругу
+      var pools = TESTS.filter(function (x) { return x.subject === t.mixFrom && !x.mixFrom && !x.noMix; })
+        .map(function (x) { return buildQuestions(x); });
+      pools = shuffle(pools);
+      var out = [], k = 0;
+      while (out.length < t.count && pools.some(function (p) { return p.length; })) {
+        var p = pools[k++ % pools.length];
+        if (p.length) out.push(p.shift());
+      }
+      return out;
+    }
+    if (t.generate) return t.generate();
+    return t.shuffle === false ? t.questions.slice() : shuffle(t.questions);
+  }
+  function qCount(t) { return t.count || (t.questions ? t.questions.length : 0); }
   function plural(n, one, few, many) {
     var m10 = n % 10, m100 = n % 100;
     if (m10 === 1 && m100 !== 11) return one;
@@ -106,7 +139,8 @@
           var r = results[t.id];
           html += '<a class="test-item" href="#/t/' + esc(t.id) + '">' +
             '<div class="t-body"><div class="t-title">' + esc(t.title) + '</div>' +
-            '<div class="t-meta">' + t.questions.length + ' ' + plural(t.questions.length, "вопрос", "вопроса", "вопросов") +
+            '<div class="t-meta">' + qCount(t) + ' ' + plural(qCount(t), "вопрос", "вопроса", "вопросов") +
+            (t.generate ? ' · 🎲 каждый раз новые' : '') + (t.mixFrom ? ' · 🎯 из всех тем' : '') +
             (t.source ? ' · ' + esc(t.source) : '') + '</div></div>' +
             '<div class="t-score" title="Лучший результат">' + (r ? starsStr(r.stars) : '▶️') + '</div></a>';
         });
@@ -125,7 +159,7 @@
     var test = testById(id);
     if (!test) return renderNotFound();
 
-    var questions = test.shuffle === false ? test.questions.slice() : shuffle(test.questions);
+    var questions = buildQuestions(test);
     var state = { i: 0, correct: 0, mistakes: [] };
 
     function show() {
@@ -139,7 +173,9 @@
 
       var order = null;
       if (type === "input") {
-        html += '<input class="text-answer" id="answer" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Напиши ответ">';
+        html += '<div class="answer-row"><input class="text-answer" id="answer" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ответ"' +
+          (/^-?\d/.test(String([].concat(q.answer)[0])) ? ' inputmode="decimal"' : '') + '>' +
+          (q.unit ? '<span class="unit">' + esc(q.unit) + '</span>' : '') + '</div>';
       } else {
         if (type === "multi") html += '<p class="q-hint">Выбери все правильные ответы.</p>';
         order = q.keepOrder ? q.options.map(function (_, k) { return k; }) : shuffle(q.options.map(function (_, k) { return k; }));
@@ -186,10 +222,9 @@
         if (type === "input") {
           var val = document.getElementById("answer").value;
           if (!val.trim()) return;
-          var answers = [].concat(q.answer).map(normalize);
-          ok = answers.indexOf(normalize(val)) >= 0;
+          ok = isRightInput(val, q.answer);
           userText = val;
-          rightText = [].concat(q.answer)[0];
+          rightText = [].concat(q.answer)[0] + (q.unit ? " " + q.unit : "");
           var inp = document.getElementById("answer");
           inp.classList.add(ok ? "correct" : "wrong");
           inp.readOnly = true;

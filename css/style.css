@@ -186,3 +186,7 @@ h2 { font-size: 24px; margin: 0 0 8px; }
   .bubble::before { left: 50%; top: -14px; transform: translateX(-50%); border: 10px solid transparent; border-bottom: 14px solid var(--card); border-top: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .hero-snail, .result-snail.jump { animation: none; } }
+
+.answer-row { display: flex; align-items: center; gap: 12px; }
+.answer-row .text-answer { flex: 1; min-width: 0; max-width: 320px; }
+.unit { font-size: 22px; font-weight: 700; color: var(--muted); }

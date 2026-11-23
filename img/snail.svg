@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160">
+  <!-- тело -->
+  <path d="M20 128 Q14 104 40 100 L150 100 Q186 100 186 128 Q186 142 168 142 L34 142 Q20 142 20 128 Z" fill="#9be08a" stroke="#3f8f3a" stroke-width="5"/>
+  <!-- рожки -->
+  <path d="M152 100 Q148 64 140 46" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+  <path d="M168 100 Q176 66 186 50" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+  <!-- глаза -->
+  <circle cx="140" cy="42" r="15" fill="#fff" stroke="#3f8f3a" stroke-width="4"/>
+  <circle cx="186" cy="46" r="13" fill="#fff" stroke="#3f8f3a" stroke-width="4"/>
+  <circle cx="144" cy="44" r="6.5" fill="#1f2a44"/>
+  <circle cx="182" cy="48" r="5.5" fill="#1f2a44"/>
+  <circle cx="146" cy="41" r="2.2" fill="#fff"/>
+  <circle cx="184" cy="45" r="2" fill="#fff"/>
+  <!-- улыбка и щёчка -->
+  <path d="M152 116 Q164 128 176 116" fill="none" stroke="#1f2a44" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="148" cy="120" r="5" fill="#ff9fb0" opacity=".8"/>
+  <!-- раковина -->
+  <circle cx="78" cy="78" r="52" fill="#ffb347" stroke="#c46a10" stroke-width="5"/>
+  <path d="M78 78 m0 -8 a8 8 0 1 1 -8 8 a16 16 0 1 1 16 16 a24 24 0 1 1 -24 -24 a32 32 0 1 1 32 32 a40 40 0 0 1 -40 -40"
+        fill="none" stroke="#c46a10" stroke-width="5" stroke-linecap="round"/>
+  <!-- блик -->
+  <path d="M46 44 Q56 34 70 32" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+  <!-- шапочка выпускника -->
+  <g transform="rotate(-12 150 22)">
+    <polygon points="122,22 160,8 198,22 160,36" fill="#2b3a67"/>
+    <rect x="146" y="24" width="28" height="10" fill="#2b3a67"/>
+    <path d="M196 22 L198 42" stroke="#f5c400" stroke-width="3"/>
+    <circle cx="198" cy="44" r="4" fill="#f5c400"/>
+  </g>
+</svg>

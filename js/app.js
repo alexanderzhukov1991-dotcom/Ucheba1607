@@ -5,6 +5,13 @@
   var TESTS = window.TESTS || [];
   var app = document.getElementById("app");
   var STORAGE_KEY = "ucheba-results-v1";
+  var NAME = "Ульяна";
+  var HELLO = [
+    "Я улитка Тиша. Выбирай предмет — будем учиться вместе!",
+    "Даже улитка доползёт до вершины, если не останавливаться. Поехали!",
+    "Сегодня отличный день, чтобы решить пару задачек!",
+    "Каждый решённый тест — это новая звёздочка. Соберём побольше?"
+  ];
 
   // ---------- Хранение результатов (в браузере ребёнка) ----------
   function loadResults() {
@@ -65,7 +72,9 @@
   // ---------- Экраны ----------
   function renderHome() {
     var results = loadResults();
-    var html = '<h1>Привет! 👋</h1><p class="subtitle">Выбери предмет и проверь себя.</p><div class="grid">';
+    var hello = HELLO[Math.floor(Math.random() * HELLO.length)];
+    var html = '<div class="hero"><img src="img/snail.svg" alt="Улитка" class="hero-snail">' +
+      '<div class="bubble"><h1>Привет, ' + esc(NAME) + '! 👋</h1><p>' + esc(hello) + '</p></div></div><div class="grid">';
     SUBJECTS.forEach(function (s) {
       var tests = TESTS.filter(function (t) { return t.subject === s.id; });
       var done = tests.filter(function (t) { return results[t.id]; }).length;
@@ -200,7 +209,7 @@
         if (ok) state.correct++;
         else state.mistakes.push({ q: q.q, user: userText, right: rightText, explain: q.explain });
 
-        var praise = ["Отлично! 🎉", "Верно! 👍", "Молодец! 🌟", "Правильно! ✅", "Супер! 💪"];
+        var praise = ["Отлично! 🎉", "Верно! 👍", "Молодец, " + NAME + "! 🌟", "Правильно! ✅", "Супер! 💪", "Умница! 🐌✨"];
         var fb = '<div class="feedback ' + (ok ? "ok" : "bad") + '">' +
           (ok ? praise[Math.floor(Math.random() * praise.length)]
               : 'Не совсем 🙁 Правильный ответ: <b>' + esc(rightText) + '</b>') +
@@ -222,9 +231,14 @@
       var stars = starsFor(state.correct, total);
       saveResult(test.id, state.correct, total);
       updateStarsTotal();
-      var msg = ["Попробуй ещё раз — у тебя получится! 💪", "Неплохо! Повтори тему и попробуй снова.", "Хорошо! Ещё чуть-чуть до идеала.", "Великолепно! Ты настоящий знаток! 🏆"][stars];
+      var msg = [
+        NAME + ", не расстраивайся! Давай разберём ошибки и попробуем ещё раз 💪",
+        "Неплохо, " + NAME + "! Повтори тему — и всё получится.",
+        "Хорошо, " + NAME + "! Ещё чуть-чуть до идеала.",
+        "Ура, " + NAME + "! Ты настоящая умница! 🏆"][stars];
       var html = '<a class="back" href="#/s/' + esc(test.subject) + '">← К списку тестов</a>' +
-        '<div class="card result"><h2>' + esc(test.title) + '</h2>' +
+        '<div class="card result"><img src="img/snail.svg" alt="" class="result-snail' + (stars >= 2 ? ' jump' : '') + '">' +
+        '<h2>' + esc(test.title) + '</h2>' +
         '<div class="big-stars">' + starsStr(stars) + '</div>' +
         '<div class="score">' + state.correct + ' из ' + total + '</div>' +
         '<p>' + msg + '</p>' +

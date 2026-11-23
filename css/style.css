@@ -160,3 +160,29 @@ h2 { font-size: 24px; margin: 0 0 8px; }
   .q-text { font-size: 20px; }
   .card { padding: 18px; }
 }
+
+/* Улитка-талисман */
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-img { width: 48px; height: 38px; }
+.hero { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+.hero-snail { width: 150px; flex-shrink: 0; animation: crawl 3s ease-in-out infinite; }
+.bubble {
+  position: relative; background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px 20px;
+}
+.bubble::before {
+  content: ""; position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+  border: 10px solid transparent; border-right: 14px solid var(--card); border-left: 0;
+}
+.bubble h1 { margin-bottom: 4px; }
+.bubble p { margin: 0; color: var(--muted); }
+.result-snail { width: 120px; margin-bottom: 6px; }
+.result-snail.jump { animation: jump .7s ease-in-out 3; }
+@keyframes crawl { 0%,100% { transform: translateX(0); } 50% { transform: translateX(8px) rotate(-2deg); } }
+@keyframes jump { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+@media (max-width: 520px) {
+  .hero { flex-direction: column; text-align: center; }
+  .hero-snail { width: 120px; }
+  .bubble::before { left: 50%; top: -14px; transform: translateX(-50%); border: 10px solid transparent; border-bottom: 14px solid var(--card); border-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .hero-snail, .result-snail.jump { animation: none; } }

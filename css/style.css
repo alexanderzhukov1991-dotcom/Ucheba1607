@@ -190,3 +190,30 @@ h2 { font-size: 24px; margin: 0 0 8px; }
 .answer-row { display: flex; align-items: center; gap: 12px; }
 .answer-row .text-answer { flex: 1; min-width: 0; max-width: 320px; }
 .unit { font-size: 22px; font-weight: 700; color: var(--muted); }
+
+/* Весёлые фишки */
+.fb-snail { width: 34px; vertical-align: middle; margin-right: 8px; }
+.combo { display: inline-block; margin-left: 6px; padding: 2px 10px; border-radius: 999px;
+  background: linear-gradient(90deg, #ff7a18, #ff2d75); color: #fff; font-weight: 800; animation: pop .5s ease-out; }
+.streak { margin-left: 8px; color: #ff6a00; animation: pop .4s ease-out; display: inline-block; }
+.feedback.ok { animation: pop .35s ease-out; }
+.feedback.bad { animation: shake .4s ease-in-out; }
+@keyframes pop { 0% { transform: scale(.6); } 70% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+.confetti span { position: absolute; bottom: -50px; animation: fly 1.8s ease-out forwards; }
+@keyframes fly {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), -105vh) rotate(540deg); opacity: 0; }
+}
+
+.six-seven { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 60; animation: ssfade 2s ease-in-out forwards; }
+.ss-num { font-size: 110px; line-height: 1; animation: pop .5s ease-out; }
+.ss-text { font-size: 54px; font-weight: 900; color: #fff; -webkit-text-stroke: 3px #5b2bff;
+  text-shadow: 4px 4px 0 #ff2d75; letter-spacing: 2px; }
+.ss-hands { font-size: 80px; animation: juggle .35s ease-in-out infinite alternate; }
+@keyframes juggle { from { transform: rotate(-18deg) translateY(0); } to { transform: rotate(18deg) translateY(-10px); } }
+@keyframes ssfade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .six-seven, .ss-hands, .combo, .streak, .feedback.ok, .feedback.bad { animation: none; } }

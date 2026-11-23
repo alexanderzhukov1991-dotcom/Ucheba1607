@@ -90,6 +90,34 @@
     if (t.generate) return t.generate();
     return t.shuffle === false ? t.questions.slice() : shuffle(t.questions);
   }
+  // ---------- Весёлые фишки ----------
+  var FUN = window.FUN || { right: ["Верно!"], wrong: ["Не совсем."], streak: {}, confetti: ["🎉"], result: ["", "", "", ""] };
+  function withName(s) { return String(s).replace(/\{name\}/g, NAME); }
+  function funText(list) { return withName(list[Math.floor(Math.random() * list.length)]); }
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function burst(n) {
+    if (reduceMotion) return;
+    var box = document.createElement("div");
+    box.className = "confetti";
+    for (var i = 0; i < n; i++) {
+      var e = document.createElement("span");
+      e.textContent = FUN.confetti[Math.floor(Math.random() * FUN.confetti.length)];
+      e.style.left = (5 + Math.random() * 90) + "%";
+      e.style.animationDelay = (Math.random() * 0.3) + "s";
+      e.style.fontSize = (20 + Math.random() * 22) + "px";
+      e.style.setProperty("--dx", (Math.random() * 120 - 60) + "px");
+      box.appendChild(e);
+    }
+    document.body.appendChild(box);
+    setTimeout(function () { box.remove(); }, 2200);
+  }
+  function sixSeven() {
+    var el = document.createElement("div");
+    el.className = "six-seven";
+    el.innerHTML = '<div class="ss-num">6️⃣7️⃣</div><div class="ss-text">SIX SEVEN!</div><div class="ss-hands">🤲</div>';
+    document.body.appendChild(el);
+    setTimeout(function () { el.remove(); }, 2000);
+  }
   function qCount(t) { return t.count || (t.questions ? t.questions.length : 0); }
   function plural(n, one, few, many) {
     var m10 = n % 10, m100 = n % 100;
@@ -160,7 +188,7 @@
     if (!test) return renderNotFound();
 
     var questions = buildQuestions(test);
-    var state = { i: 0, correct: 0, mistakes: [] };
+    var state = { i: 0, correct: 0, mistakes: [], streak: 0 };
 
     function show() {
       var q = questions[state.i];
@@ -168,7 +196,8 @@
       var total = questions.length;
       var html = '<a class="back" href="#/s/' + esc(test.subject) + '">← ' + esc(test.title) + '</a>' +
         '<div class="card"><div class="progress"><div style="width:' + (state.i / total * 100) + '%"></div></div>' +
-        '<div class="q-counter">Вопрос ' + (state.i + 1) + ' из ' + total + '</div>' +
+        '<div class="q-counter">Вопрос ' + (state.i + 1) + ' из ' + total +
+        (state.streak >= 2 ? ' <span class="streak">🔥 ' + state.streak + '</span>' : '') + '</div>' +
         '<p class="q-text">' + esc(q.q) + '</p>';
 
       var order = null;
@@ -241,15 +270,20 @@
           });
         }
         answered = true;
-        if (ok) state.correct++;
-        else state.mistakes.push({ q: q.q, user: userText, right: rightText, explain: q.explain });
+        if (ok) { state.correct++; state.streak++; } else state.streak = 0;
+        if (!ok) state.mistakes.push({ q: q.q, user: userText, right: rightText, explain: q.explain });
 
-        var praise = ["Отлично! 🎉", "Верно! 👍", "Молодец, " + NAME + "! 🌟", "Правильно! ✅", "Супер! 💪", "Умница! 🐌✨"];
-        var fb = '<div class="feedback ' + (ok ? "ok" : "bad") + '">' +
-          (ok ? praise[Math.floor(Math.random() * praise.length)]
-              : 'Не совсем 🙁 Правильный ответ: <b>' + esc(rightText) + '</b>') +
+        var combo = ok && FUN.streak[state.streak];
+        var fb = '<div class="feedback ' + (ok ? "ok" : "bad") + '"><img src="img/snail.svg" alt="" class="fb-snail">' +
+          (ok ? esc(funText(FUN.right)) + (combo ? ' <span class="combo">' + esc(combo) + '</span>' : '')
+              : esc(funText(FUN.wrong)) + ' Правильный ответ: <b>' + esc(rightText) + '</b>') +
           (q.explain ? '<div class="explain">💡 ' + esc(q.explain) + '</div>' : '') + '</div>';
         document.getElementById("feedback").innerHTML = fb;
+        if (ok) {
+          // пасхалка «six seven»: в ответе есть 67 — или просто иногда
+          if (/6\s*7/.test(rightText) || Math.random() < 0.07) sixSeven();
+          else burst(combo ? 26 : 14);
+        }
         checkBtn.textContent = state.i + 1 < questions.length ? "Дальше →" : "Результат 🏁";
         checkBtn.disabled = false;
         checkBtn.focus();
@@ -266,11 +300,9 @@
       var stars = starsFor(state.correct, total);
       saveResult(test.id, state.correct, total);
       updateStarsTotal();
-      var msg = [
-        NAME + ", не расстраивайся! Давай разберём ошибки и попробуем ещё раз 💪",
-        "Неплохо, " + NAME + "! Повтори тему — и всё получится.",
-        "Хорошо, " + NAME + "! Ещё чуть-чуть до идеала.",
-        "Ура, " + NAME + "! Ты настоящая умница! 🏆"][stars];
+      var msg = withName(FUN.result[stars]);
+      if (stars === 3) setTimeout(function () { burst(40); }, 200);
+      if (state.correct === 6 || state.correct === 7) setTimeout(sixSeven, 900);
       var html = '<a class="back" href="#/s/' + esc(test.subject) + '">← К списку тестов</a>' +
         '<div class="card result"><img src="img/snail.svg" alt="" class="result-snail' + (stars >= 2 ? ' jump' : '') + '">' +
         '<h2>' + esc(test.title) + '</h2>' +

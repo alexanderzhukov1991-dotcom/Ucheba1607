@@ -38,7 +38,7 @@
     P = P || DEFAULT_PROFILE;
     var el = document.getElementById("starsTotal");
     if (P.cards) {
-      var n = 0, c = loadCards(P.key);
+      var n = 0, c = loadCards(P.cardsStore || P.key);
       Object.keys(c).forEach(function (k) { n += c[k]; });
       el.textContent = "🃏 " + n;
       el.title = "Коллекция карточек футболистов";
@@ -64,11 +64,18 @@
     try { localStorage.setItem(cardsKey(key), JSON.stringify(c)); } catch (e) {}
   }
   // {Холанд: 5, Роналду: 4} -> «5 Холандов · 4 Роналду»
+  // карточки хранятся под русским именем (общая коллекция для всех разделов ребёнка)
   function cardsText(P, counts) {
     return Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).map(function (n) {
-      var forms = P.cards.filter(function (f) { return f[0] === n; })[0] || [n, n, n];
+      var forms = P.cards.filter(function (f) { return f[0] === n; })[0] || [n, n, n, n, n];
+      if (P.lang === "en") return counts[n] + " " + (counts[n] === 1 ? (forms[3] || n) : (forms[4] || n));
       return counts[n] + " " + plural(counts[n], forms[0], forms[1], forms[2]);
     }).join(" · ");
+  }
+  function cardName(P, ruName) {
+    if (P.lang !== "en") return ruName;
+    var f = P.cards.filter(function (x) { return x[0] === ruName; })[0];
+    return (f && f[3]) || ruName;
   }
 
   // ---------- Утилиты ----------
@@ -121,6 +128,32 @@
     if (t.generate) return t.generate();
     return t.shuffle === false ? t.questions.slice() : shuffle(t.questions);
   }
+  // ---------- Язык интерфейса (у профиля может быть lang: "en") ----------
+  var I18N = {
+    ru: { all: "← Все предметы", toList: "← К списку тестов", q: "Вопрос", of: "из", ph: "Ответ",
+          multi: "Выбери все правильные ответы.", check: "Проверить", next: "Дальше →", res: "Результат 🏁",
+          match: "Счёт матча: ", loot: "🃏 Твоя добыча: ", again: "Пройти ещё раз 🔄", other: "Другие тесты",
+          mist: "Работа над ошибками", yours: "Твой ответ: ", right: "Правильно: ",
+          coll: "🃏 Твоя коллекция:", collEmpty: "пока пусто — отвечай правильно и собирай футболистов!",
+          qs: ["вопрос", "вопроса", "вопросов"], tests: ["тест", "теста", "тестов"],
+          gen: " · 🎲 каждый раз новые", mix: " · 🎯 из всех тем", none: "Тестов пока нет. Скоро появятся!",
+          misc: "Разное", best: "Лучший результат" },
+    en: { all: "← All subjects", toList: "← Back to tests", q: "Question", of: "of", ph: "Answer",
+          multi: "Choose ALL correct answers.", check: "Check", next: "Next →", res: "Results 🏁",
+          match: "Match score: ", loot: "🃏 Your loot: ", again: "Play again 🔄", other: "Other tests",
+          mist: "Let's fix the mistakes", yours: "Your answer: ", right: "Correct: ",
+          coll: "🃏 Your collection:", collEmpty: "empty for now — answer correctly to collect football players!",
+          qs: ["question", "questions", "questions"], tests: ["test", "tests", "tests"],
+          gen: " · 🎲 new every time", mix: " · 🎯 all topics", none: "No tests yet.",
+          misc: "Other", best: "Best result" }
+  };
+  function L(P, key) { return (I18N[(P && P.lang) || "ru"] || I18N.ru)[key]; }
+  // «5 вопросов» / «5 questions»
+  function countWord(P, n, forms) {
+    if ((P && P.lang) === "en") return n + " " + (n === 1 ? forms[0] : forms[1]);
+    return n + " " + plural(n, forms[0], forms[1], forms[2]);
+  }
+
   // ---------- Профили и весёлые фишки ----------
   var FUN = window.FUN || { right: ["Верно!"], wrong: ["Не совсем."], streak: {}, confetti: ["🎉"], result: ["", "", "", ""] };
   var DEFAULT_PROFILE = {
@@ -195,16 +228,21 @@
     }
     SUBJECTS.forEach(function (s) { if (!profileKey(s.id)) html += card(s); });
     html += '</div>';
-    // разделы других детей
-    SUBJECTS.forEach(function (s) {
-      if (!profileKey(s.id)) return;
-      var P = profileFor(s.id);
-      var tests = TESTS.filter(function (t) { return t.subject === s.id; });
-      html += '<a class="kid-block" style="--c:' + esc(s.color) + '" href="#/s/' + esc(s.id) + '">' +
-        '<img src="' + esc(P.mascot) + '" alt="" class="kid-mascot">' +
-        '<div><div class="kid-title">' + esc(s.ownerTitle || s.name) + '</div>' +
-        '<div class="kid-sub">' + esc(s.icon) + ' ' + esc(s.name) + (s.grade ? ' · ' + esc(s.grade) : '') +
-        ' · ' + tests.length + ' ' + plural(tests.length, "тест", "теста", "тестов") + '</div></div></a>';
+    // разделы других детей: один блок на ребёнка, внутри — его разделы
+    var owners = [];
+    SUBJECTS.forEach(function (s) { if (profileKey(s.id) && owners.indexOf(s.owner) < 0) owners.push(s.owner); });
+    owners.forEach(function (owner) {
+      var subs = SUBJECTS.filter(function (s) { return profileKey(s.id) && s.owner === owner; });
+      var P0 = profileFor(subs[0].id);
+      html += '<div class="kid-block" style="--c:' + esc(subs[0].color) + '">' +
+        '<img src="' + esc(P0.mascot) + '" alt="" class="kid-mascot">' +
+        '<div class="kid-body"><div class="kid-title">' + esc(subs[0].ownerTitle || owner) + '</div><div class="kid-links">';
+      subs.forEach(function (s) {
+        var P = profileFor(s.id), n = TESTS.filter(function (t) { return t.subject === s.id; }).length;
+        html += '<a class="kid-link" href="#/s/' + esc(s.id) + '"><b>' + esc(s.icon) + ' ' + esc(s.name) + '</b>' +
+          '<span>' + (s.grade ? esc(s.grade) + ' · ' : '') + countWord(P, n, L(P, "tests")) + '</span></a>';
+      });
+      html += '</div></div></div>';
     });
     app.innerHTML = html;
   }
@@ -215,33 +253,33 @@
     var results = loadResults();
     var tests = TESTS.filter(function (t) { return t.subject === id; });
     var P = profileFor(id);
-    var html = '<a class="back" href="#/">← Все предметы</a>';
+    var html = '<a class="back" href="#/">' + L(P, "all") + '</a>';
     if (P.key) {
-      var coll = loadCards(P.key);
+      var coll = loadCards(P.cardsStore || P.key);
       html += '<div class="hero"><img src="' + esc(P.mascot) + '" alt="" class="hero-snail">' +
         '<div class="bubble"><h1>' + esc(s.icon) + ' ' + esc(s.name) + '</h1><p>' + esc(withName(pickOne(P.hello), P)) + '</p></div></div>';
       if (P.cards) {
-        html += '<div class="collection"><b>🃏 Твоя коллекция:</b> ' +
-          (Object.keys(coll).length ? esc(cardsText(P, coll)) : 'пока пусто — отвечай правильно и собирай футболистов!') + '</div>';
+        html += '<div class="collection"><b>' + L(P, "coll") + '</b> ' +
+          (Object.keys(coll).length ? esc(cardsText(P, coll)) : L(P, "collEmpty")) + '</div>';
       }
     } else {
       html += '<h1>' + esc(s.icon) + ' ' + esc(s.name) + '</h1>';
     }
     if (!tests.length) {
-      html += '<p class="empty">Тестов пока нет. Скоро появятся!</p>';
+      html += '<p class="empty">' + L(P, "none") + '</p>';
     } else {
       var topics = [];
-      tests.forEach(function (t) { var tp = t.topic || "Разное"; if (topics.indexOf(tp) < 0) topics.push(tp); });
+      tests.forEach(function (t) { var tp = t.topic || L(P, "misc"); if (topics.indexOf(tp) < 0) topics.push(tp); });
       topics.forEach(function (tp) {
         html += '<div class="topic-header">' + esc(tp) + '</div><div class="test-list">';
-        tests.filter(function (t) { return (t.topic || "Разное") === tp; }).forEach(function (t) {
+        tests.filter(function (t) { return (t.topic || L(P, "misc")) === tp; }).forEach(function (t) {
           var r = results[t.id];
           html += '<a class="test-item" href="#/t/' + esc(t.id) + '">' +
             '<div class="t-body"><div class="t-title">' + esc(t.title) + '</div>' +
-            '<div class="t-meta">' + qCount(t) + ' ' + plural(qCount(t), "вопрос", "вопроса", "вопросов") +
-            (t.generate ? ' · 🎲 каждый раз новые' : '') + (t.mixFrom ? ' · 🎯 из всех тем' : '') +
+            '<div class="t-meta">' + countWord(P, qCount(t), L(P, "qs")) +
+            (t.generate ? L(P, "gen") : '') + (t.mixFrom ? L(P, "mix") : '') +
             (t.source ? ' · ' + esc(t.source) : '') + '</div></div>' +
-            '<div class="t-score" title="Лучший результат">' + (r ? starsStr(r.stars, P) : '▶️') + '</div></a>';
+            '<div class="t-score" title="' + L(P, "best") + '">' + (r ? starsStr(r.stars, P) : '▶️') + '</div></a>';
         });
         html += '</div>';
       });
@@ -269,17 +307,18 @@
       var total = questions.length;
       var html = '<a class="back" href="#/s/' + esc(test.subject) + '">← ' + esc(test.title) + '</a>' +
         '<div class="card"><div class="progress"><div style="width:' + (state.i / total * 100) + '%"></div></div>' +
-        '<div class="q-counter">Вопрос ' + (state.i + 1) + ' из ' + total +
+        '<div class="q-counter">' + L(P, "q") + ' ' + (state.i + 1) + ' ' + L(P, "of") + ' ' + total +
         (state.streak >= 2 ? ' <span class="streak">🔥 ' + state.streak + '</span>' : '') + '</div>' +
-        '<p class="q-text">' + esc(q.q) + '</p>';
+        '<p class="q-text">' + esc(q.q) + '</p>' +
+        (q.pic ? '<div class="q-pic">' + esc(q.pic) + '</div>' : '');
 
       var order = null;
       if (type === "input") {
-        html += '<div class="answer-row"><input class="text-answer" id="answer" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ответ"' +
+        html += '<div class="answer-row"><input class="text-answer" id="answer" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + L(P, "ph") + '"' +
           (/^-?\d/.test(String([].concat(q.answer)[0])) ? ' inputmode="decimal"' : '') + '>' +
           (q.unit ? '<span class="unit">' + esc(q.unit) + '</span>' : '') + '</div>';
       } else {
-        if (type === "multi") html += '<p class="q-hint">Выбери все правильные ответы.</p>';
+        if (type === "multi") html += '<p class="q-hint">' + L(P, "multi") + '</p>';
         order = q.keepOrder ? q.options.map(function (_, k) { return k; }) : shuffle(q.options.map(function (_, k) { return k; }));
         html += '<div class="options">';
         order.forEach(function (k) {
@@ -288,7 +327,7 @@
         html += '</div>';
       }
       html += '<div id="feedback"></div><div class="actions">' +
-        '<button class="btn" id="check" ' + (type === "input" ? "" : "disabled") + '>Проверить</button></div></div>';
+        '<button class="btn" id="check" ' + (type === "input" ? "" : "disabled") + '>' + L(P, "check") + '</button></div></div>';
       app.innerHTML = html;
 
       var checkBtn = document.getElementById("check");
@@ -351,7 +390,7 @@
         if (ok && P.cards) { got = pickOne(P.cards)[0]; state.cards.push(got); }
         var fb = '<div class="feedback ' + (ok ? "ok" : "bad") + '"><img src="' + esc(P.mascot) + '" alt="" class="fb-snail">' +
           (ok ? esc(funText(P.right, P)) + (combo ? ' <span class="combo">' + esc(combo) + '</span>' : '') +
-                (got ? ' <span class="card-get">+1 ' + esc(got) + ' 🃏</span>' : '')
+                (got ? ' <span class="card-get">+1 ' + esc(cardName(P, got)) + ' 🃏</span>' : '')
               : esc(funText(P.wrong, P)) + ' <b>' + esc(rightText) + '</b>') +
           (q.explain ? '<div class="explain">💡 ' + esc(q.explain) + '</div>' : '') + '</div>';
         document.getElementById("feedback").innerHTML = fb;
@@ -360,7 +399,7 @@
           if (/6\s*7/.test(rightText) || Math.random() < 0.07) sixSeven();
           else burst(combo ? 26 : 14);
         }
-        checkBtn.textContent = state.i + 1 < questions.length ? "Дальше →" : "Результат 🏁";
+        checkBtn.textContent = state.i + 1 < questions.length ? L(P, "next") : L(P, "res");
         checkBtn.disabled = false;
         checkBtn.focus();
       });
@@ -375,30 +414,30 @@
       var total = questions.length;
       var stars = starsFor(state.correct, total);
       saveResult(test.id, state.correct, total);
-      if (P.cards && state.cards.length) addCards(P.key, state.cards);
+      if (P.cards && state.cards.length) addCards(P.cardsStore || P.key, state.cards);
       updateStarsTotal(P);
       var msg = withName(P.result[stars], P);
       var loot = {};
       state.cards.forEach(function (n) { loot[n] = (loot[n] || 0) + 1; });
       if (stars === 3) setTimeout(function () { burst(40); }, 200);
       if (state.correct === 6 || state.correct === 7) setTimeout(sixSeven, 900);
-      var html = '<a class="back" href="#/s/' + esc(test.subject) + '">← К списку тестов</a>' +
+      var html = '<a class="back" href="#/s/' + esc(test.subject) + '">' + L(P, "toList") + '</a>' +
         '<div class="card result"><img src="' + esc(P.mascot) + '" alt="" class="result-snail' + (stars >= 2 ? ' jump' : '') + '">' +
         '<h2>' + esc(test.title) + '</h2>' +
         '<div class="big-stars">' + starsStr(stars, P) + '</div>' +
         '<div class="score">' + (P.matchScore
-          ? 'Счёт матча: ' + state.correct + ' : ' + (total - state.correct)
-          : state.correct + ' из ' + total) + '</div>' +
+          ? L(P, "match") + state.correct + ' : ' + (total - state.correct)
+          : state.correct + ' ' + L(P, "of") + ' ' + total) + '</div>' +
         '<p>' + esc(msg) + '</p>' +
-        (P.cards && state.cards.length ? '<div class="loot">🃏 Твоя добыча: <b>' + esc(cardsText(P, loot)) + '</b></div>' : '') +
+        (P.cards && state.cards.length ? '<div class="loot">' + L(P, "loot") + '<b>' + esc(cardsText(P, loot)) + '</b></div>' : '') +
         '<div class="actions" style="justify-content:center">' +
-        '<button class="btn" id="again">Пройти ещё раз 🔄</button>' +
-        '<a class="btn secondary" href="#/s/' + esc(test.subject) + '">Другие тесты</a></div>';
+        '<button class="btn" id="again">' + L(P, "again") + '</button>' +
+        '<a class="btn secondary" href="#/s/' + esc(test.subject) + '">' + L(P, "other") + '</a></div>';
       if (state.mistakes.length) {
-        html += '<div class="mistakes"><h2>Работа над ошибками</h2>';
+        html += '<div class="mistakes"><h2>' + L(P, "mist") + '</h2>';
         state.mistakes.forEach(function (m) {
           html += '<div class="mistake"><div class="m-q">' + esc(m.q) + '</div>' +
-            '<div class="m-a">Твой ответ: ' + esc(m.user) + ' · Правильно: <b>' + esc(m.right) + '</b></div>' +
+            '<div class="m-a">' + L(P, "yours") + esc(m.user) + ' · ' + L(P, "right") + '<b>' + esc(m.right) + '</b></div>' +
             (m.explain ? '<div>💡 ' + esc(m.explain) + '</div>' : '') + '</div>';
         });
         html += '</div>';

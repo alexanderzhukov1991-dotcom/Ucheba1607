@@ -137,3 +137,48 @@ window.PROFILES = {
     ]
   }
 };
+
+// Английский раздел Артемия (Illustrative Mathematics, Grade 1).
+// Коллекция карточек общая с русским разделом (cardsStore: "artemy").
+(function () {
+  var EN = { "Холанд": ["Haaland", "Haalands"], "Роналду": ["Ronaldo", "Ronaldos"], "Месси": ["Messi", "Messis"],
+             "Мбаппе": ["Mbappe", "Mbappes"], "Ямаль": ["Yamal", "Yamals"], "Винисиус": ["Vinicius", "Viniciuses"],
+             "Кейн": ["Kane", "Kanes"], "Салах": ["Salah", "Salahs"], "Беллингем": ["Bellingham", "Bellinghams"],
+             "Неймар": ["Neymar", "Neymars"] };
+  var base = window.PROFILES.artemy;
+  window.PROFILES.artemy_en = Object.assign({}, base, {
+    lang: "en",
+    name: "Shark",
+    cardsStore: "artemy",
+    cards: base.cards.map(function (f) { return f.concat(EN[f[0]] || [f[0], f[0]]); }),
+    hello: [
+      "Hi, Shark! 🦈 Today is Fighting Day… with math problems!",
+      "Shark is on the pitch! ⚽ Let's score some answer-goals!",
+      "Maestro is warming up. Show him who the champion is! 🏆",
+      "Every correct answer = a new football card. Collect the whole team! 🃏"
+    ],
+    right: [
+      "GOOOOAL! ⚽", "Shark attack! 🦈", "Top corner! 🎯", "Just like Haaland! 💪", "Messi magic! 🐐",
+      "SIUUUU! 🙌", "Back of the net! 🥅", "Maestro is down! 🤼", "Knockout! 🥊", "Champion! 🏆",
+      "The crowd goes wild! 🏟️", "Shark is hungry for goals! 🦈", "Dad Maxim shakes his curls! 🧑‍🦱",
+      "Mom Tanya will post this in her stories! 📱✨", "Maestro is shocked! 😱", "Golden Ball answer! 🏅"
+    ],
+    wrong: [
+      "Hit the post! 🥅 The answer is:", "Wide of the goal! No problem, look:", "Saved by goalkeeper Maestro! 🧤 The answer is:",
+      "Offside! 🚩 Here's the answer:", "Maestro got you this time 🤼 Rematch! The answer is:",
+      "Even Ronaldo misses sometimes. The answer is:"
+    ],
+    streak: {
+      3: "HAT-TRICK! ⚽⚽⚽",
+      5: "5 in a row! The crowd is on its feet! 🏟️",
+      7: "7 in a row — Ronaldo's number! 7️⃣",
+      10: "10 in a row — Messi's number! 🐐"
+    },
+    result: [
+      "Tough match, but there's always a rematch! Try again? ⚽",
+      "Almost a draw! Speed up and the win is ours! 💨",
+      "Victory! Maestro is clapping 👏",
+      "CHAMPION! The cup is yours, {name}! 🏆"
+    ]
+  });
+})();

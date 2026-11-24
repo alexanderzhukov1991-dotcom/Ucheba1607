@@ -34,10 +34,41 @@
     if (p >= 0.5) return 1;
     return 0;
   }
-  function updateStarsTotal() {
+  function updateStarsTotal(P) {
+    P = P || DEFAULT_PROFILE;
+    var el = document.getElementById("starsTotal");
+    if (P.cards) {
+      var n = 0, c = loadCards(P.key);
+      Object.keys(c).forEach(function (k) { n += c[k]; });
+      el.textContent = "🃏 " + n;
+      el.title = "Коллекция карточек футболистов";
+      return;
+    }
     var all = loadResults(), sum = 0;
-    Object.keys(all).forEach(function (k) { sum += all[k].stars || 0; });
-    document.getElementById("starsTotal").textContent = "⭐ " + sum;
+    Object.keys(all).forEach(function (k) {
+      var t = testById(k);
+      if (!t || !profileKey(t.subject)) sum += all[k].stars || 0;   // звёзды только своего раздела
+    });
+    el.textContent = "⭐ " + sum;
+    el.title = "Всего звёзд";
+  }
+
+  // ---------- Коллекция карточек (для профилей с cards) ----------
+  function cardsKey(key) { return "ucheba-cards-" + key; }
+  function loadCards(key) {
+    try { return JSON.parse(localStorage.getItem(cardsKey(key))) || {}; } catch (e) { return {}; }
+  }
+  function addCards(key, names) {
+    var c = loadCards(key);
+    names.forEach(function (n) { c[n] = (c[n] || 0) + 1; });
+    try { localStorage.setItem(cardsKey(key), JSON.stringify(c)); } catch (e) {}
+  }
+  // {Холанд: 5, Роналду: 4} -> «5 Холандов · 4 Роналду»
+  function cardsText(P, counts) {
+    return Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).map(function (n) {
+      var forms = P.cards.filter(function (f) { return f[0] === n; })[0] || [n, n, n];
+      return counts[n] + " " + plural(counts[n], forms[0], forms[1], forms[2]);
+    }).join(" · ");
   }
 
   // ---------- Утилиты ----------
@@ -90,10 +121,27 @@
     if (t.generate) return t.generate();
     return t.shuffle === false ? t.questions.slice() : shuffle(t.questions);
   }
-  // ---------- Весёлые фишки ----------
+  // ---------- Профили и весёлые фишки ----------
   var FUN = window.FUN || { right: ["Верно!"], wrong: ["Не совсем."], streak: {}, confetti: ["🎉"], result: ["", "", "", ""] };
-  function withName(s) { return String(s).replace(/\{name\}/g, NAME); }
-  function funText(list) { return withName(list[Math.floor(Math.random() * list.length)]); }
+  var DEFAULT_PROFILE = {
+    key: null, name: NAME, mascot: "img/snail.svg", hello: HELLO, sym: ["⭐", "☆"],
+    right: FUN.right, wrong: FUN.wrong, streak: FUN.streak || {}, confetti: FUN.confetti, result: FUN.result
+  };
+  function profileKey(subjectId) {
+    var s = subjectById(subjectId);
+    return s && s.profile && window.PROFILES && window.PROFILES[s.profile] ? s.profile : null;
+  }
+  function profileFor(subjectId) {
+    var key = profileKey(subjectId);
+    if (!key) return DEFAULT_PROFILE;
+    var P = Object.assign({}, DEFAULT_PROFILE, window.PROFILES[key]);
+    P.key = key;
+    return P;
+  }
+  function pickOne(list) { return list[Math.floor(Math.random() * list.length)]; }
+  function withName(s, P) { return String(s).replace(/\{name\}/g, (P || DEFAULT_PROFILE).name); }
+  function funText(list, P) { return withName(pickOne(list), P); }
+  var currentConfetti = FUN.confetti;
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function burst(n) {
     if (reduceMotion) return;
@@ -101,7 +149,7 @@
     box.className = "confetti";
     for (var i = 0; i < n; i++) {
       var e = document.createElement("span");
-      e.textContent = FUN.confetti[Math.floor(Math.random() * FUN.confetti.length)];
+      e.textContent = pickOne(currentConfetti);
       e.style.left = (5 + Math.random() * 90) + "%";
       e.style.animationDelay = (Math.random() * 0.3) + "s";
       e.style.fontSize = (20 + Math.random() * 22) + "px";
@@ -125,7 +173,7 @@
     if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
     return many;
   }
-  function starsStr(n) { return "⭐".repeat(n) + "☆".repeat(3 - n); }
+  function starsStr(n, P) { var s = (P || DEFAULT_PROFILE).sym; return s[0].repeat(n) + s[1].repeat(3 - n); }
   function subjectById(id) { return SUBJECTS.filter(function (s) { return s.id === id; })[0]; }
   function testById(id) { return TESTS.filter(function (t) { return t.id === id; })[0]; }
   function qType(q) { return q.type || (q.options ? (Array.isArray(q.answer) ? "multi" : "choice") : "input"); }
@@ -136,16 +184,28 @@
     var hello = HELLO[Math.floor(Math.random() * HELLO.length)];
     var html = '<div class="hero"><img src="img/snail.svg" alt="Улитка" class="hero-snail">' +
       '<div class="bubble"><h1>Привет, ' + esc(NAME) + '! 👋</h1><p>' + esc(hello) + '</p></div></div><div class="grid">';
-    SUBJECTS.forEach(function (s) {
+    function card(s) {
       var tests = TESTS.filter(function (t) { return t.subject === s.id; });
       var done = tests.filter(function (t) { return results[t.id]; }).length;
-      html += '<a class="subject-card" style="--c:' + esc(s.color) + '" href="#/s/' + esc(s.id) + '">' +
+      return '<a class="subject-card" style="--c:' + esc(s.color) + '" href="#/s/' + esc(s.id) + '">' +
         '<div class="icon">' + esc(s.icon) + '</div>' +
         '<div class="name">' + esc(s.name) + '</div>' +
         '<div class="meta">' + tests.length + ' ' + plural(tests.length, "тест", "теста", "тестов") +
         (tests.length ? ' · пройдено ' + done : '') + '</div></a>';
-    });
+    }
+    SUBJECTS.forEach(function (s) { if (!profileKey(s.id)) html += card(s); });
     html += '</div>';
+    // разделы других детей
+    SUBJECTS.forEach(function (s) {
+      if (!profileKey(s.id)) return;
+      var P = profileFor(s.id);
+      var tests = TESTS.filter(function (t) { return t.subject === s.id; });
+      html += '<a class="kid-block" style="--c:' + esc(s.color) + '" href="#/s/' + esc(s.id) + '">' +
+        '<img src="' + esc(P.mascot) + '" alt="" class="kid-mascot">' +
+        '<div><div class="kid-title">' + esc(s.ownerTitle || s.name) + '</div>' +
+        '<div class="kid-sub">' + esc(s.icon) + ' ' + esc(s.name) + (s.grade ? ' · ' + esc(s.grade) : '') +
+        ' · ' + tests.length + ' ' + plural(tests.length, "тест", "теста", "тестов") + '</div></div></a>';
+    });
     app.innerHTML = html;
   }
 
@@ -154,8 +214,19 @@
     if (!s) return renderNotFound();
     var results = loadResults();
     var tests = TESTS.filter(function (t) { return t.subject === id; });
-    var html = '<a class="back" href="#/">← Все предметы</a>' +
-      '<h1>' + esc(s.icon) + ' ' + esc(s.name) + '</h1>';
+    var P = profileFor(id);
+    var html = '<a class="back" href="#/">← Все предметы</a>';
+    if (P.key) {
+      var coll = loadCards(P.key);
+      html += '<div class="hero"><img src="' + esc(P.mascot) + '" alt="" class="hero-snail">' +
+        '<div class="bubble"><h1>' + esc(s.icon) + ' ' + esc(s.name) + '</h1><p>' + esc(withName(pickOne(P.hello), P)) + '</p></div></div>';
+      if (P.cards) {
+        html += '<div class="collection"><b>🃏 Твоя коллекция:</b> ' +
+          (Object.keys(coll).length ? esc(cardsText(P, coll)) : 'пока пусто — отвечай правильно и собирай футболистов!') + '</div>';
+      }
+    } else {
+      html += '<h1>' + esc(s.icon) + ' ' + esc(s.name) + '</h1>';
+    }
     if (!tests.length) {
       html += '<p class="empty">Тестов пока нет. Скоро появятся!</p>';
     } else {
@@ -170,7 +241,7 @@
             '<div class="t-meta">' + qCount(t) + ' ' + plural(qCount(t), "вопрос", "вопроса", "вопросов") +
             (t.generate ? ' · 🎲 каждый раз новые' : '') + (t.mixFrom ? ' · 🎯 из всех тем' : '') +
             (t.source ? ' · ' + esc(t.source) : '') + '</div></div>' +
-            '<div class="t-score" title="Лучший результат">' + (r ? starsStr(r.stars) : '▶️') + '</div></a>';
+            '<div class="t-score" title="Лучший результат">' + (r ? starsStr(r.stars, P) : '▶️') + '</div></a>';
         });
         html += '</div>';
       });
@@ -188,7 +259,9 @@
     if (!test) return renderNotFound();
 
     var questions = buildQuestions(test);
-    var state = { i: 0, correct: 0, mistakes: [], streak: 0 };
+    var P = profileFor(test.subject);
+    currentConfetti = P.confetti;
+    var state = { i: 0, correct: 0, mistakes: [], streak: 0, cards: [] };
 
     function show() {
       var q = questions[state.i];
@@ -273,10 +346,13 @@
         if (ok) { state.correct++; state.streak++; } else state.streak = 0;
         if (!ok) state.mistakes.push({ q: q.q, user: userText, right: rightText, explain: q.explain });
 
-        var combo = ok && FUN.streak[state.streak];
-        var fb = '<div class="feedback ' + (ok ? "ok" : "bad") + '"><img src="img/snail.svg" alt="" class="fb-snail">' +
-          (ok ? esc(funText(FUN.right)) + (combo ? ' <span class="combo">' + esc(combo) + '</span>' : '')
-              : esc(funText(FUN.wrong)) + ' Правильный ответ: <b>' + esc(rightText) + '</b>') +
+        var combo = ok && P.streak[state.streak];
+        var got = null;
+        if (ok && P.cards) { got = pickOne(P.cards)[0]; state.cards.push(got); }
+        var fb = '<div class="feedback ' + (ok ? "ok" : "bad") + '"><img src="' + esc(P.mascot) + '" alt="" class="fb-snail">' +
+          (ok ? esc(funText(P.right, P)) + (combo ? ' <span class="combo">' + esc(combo) + '</span>' : '') +
+                (got ? ' <span class="card-get">+1 ' + esc(got) + ' 🃏</span>' : '')
+              : esc(funText(P.wrong, P)) + ' <b>' + esc(rightText) + '</b>') +
           (q.explain ? '<div class="explain">💡 ' + esc(q.explain) + '</div>' : '') + '</div>';
         document.getElementById("feedback").innerHTML = fb;
         if (ok) {
@@ -299,16 +375,22 @@
       var total = questions.length;
       var stars = starsFor(state.correct, total);
       saveResult(test.id, state.correct, total);
-      updateStarsTotal();
-      var msg = withName(FUN.result[stars]);
+      if (P.cards && state.cards.length) addCards(P.key, state.cards);
+      updateStarsTotal(P);
+      var msg = withName(P.result[stars], P);
+      var loot = {};
+      state.cards.forEach(function (n) { loot[n] = (loot[n] || 0) + 1; });
       if (stars === 3) setTimeout(function () { burst(40); }, 200);
       if (state.correct === 6 || state.correct === 7) setTimeout(sixSeven, 900);
       var html = '<a class="back" href="#/s/' + esc(test.subject) + '">← К списку тестов</a>' +
-        '<div class="card result"><img src="img/snail.svg" alt="" class="result-snail' + (stars >= 2 ? ' jump' : '') + '">' +
+        '<div class="card result"><img src="' + esc(P.mascot) + '" alt="" class="result-snail' + (stars >= 2 ? ' jump' : '') + '">' +
         '<h2>' + esc(test.title) + '</h2>' +
-        '<div class="big-stars">' + starsStr(stars) + '</div>' +
-        '<div class="score">' + state.correct + ' из ' + total + '</div>' +
-        '<p>' + msg + '</p>' +
+        '<div class="big-stars">' + starsStr(stars, P) + '</div>' +
+        '<div class="score">' + (P.matchScore
+          ? 'Счёт матча: ' + state.correct + ' : ' + (total - state.correct)
+          : state.correct + ' из ' + total) + '</div>' +
+        '<p>' + esc(msg) + '</p>' +
+        (P.cards && state.cards.length ? '<div class="loot">🃏 Твоя добыча: <b>' + esc(cardsText(P, loot)) + '</b></div>' : '') +
         '<div class="actions" style="justify-content:center">' +
         '<button class="btn" id="again">Пройти ещё раз 🔄</button>' +
         '<a class="btn secondary" href="#/s/' + esc(test.subject) + '">Другие тесты</a></div>';
@@ -334,6 +416,9 @@
     var h = location.hash.replace(/^#\/?/, "");
     var parts = h.split("/");
     window.scrollTo(0, 0);
+    var subj = parts[0] === "s" ? decodeURIComponent(parts[1] || "")
+             : parts[0] === "t" ? ((testById(decodeURIComponent(parts[1] || "")) || {}).subject) : null;
+    updateStarsTotal(subj ? profileFor(subj) : null);
     if (!h) renderHome();
     else if (parts[0] === "s" && parts[1]) renderSubject(decodeURIComponent(parts[1]));
     else if (parts[0] === "t" && parts[1]) runTest(decodeURIComponent(parts[1]));
@@ -341,6 +426,5 @@
   }
 
   window.addEventListener("hashchange", route);
-  updateStarsTotal();
   route();
 })();
